@@ -1,6 +1,6 @@
 
 import numpy as np
-#-------function useful across whole project--------
+
 #converting flat array into 12x3
 def convertKeypoints(keypoints):
     coords = []
