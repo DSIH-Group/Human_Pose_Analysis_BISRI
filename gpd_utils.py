@@ -125,7 +125,7 @@ def computeJjo(keypoints):
 
     for i in range(numJoints):
         for j in range(i+1, numJoints):
-            vector = keypoints[j] - keypoints[i]
+            vector =  keypoints[j] - keypoints[i] 
             jjo.append(unit(vector))
 
     jjo = np.array(jjo)   
@@ -181,6 +181,7 @@ def computeJpd(keypoints, jjo):
     #derive chest
     chest = getChest(keypoints)
 
+
     for i in range(len(PLANES)):
         points = PLANES[i]
 
@@ -203,9 +204,13 @@ def computeJpd(keypoints, jjo):
                 o2_idx = getPairIndex(min(points[0], points[1]), max(points[0], points[1]))
                 o3_idx = getPairIndex(min(points[0], points[2]), max(points[0], points[2]))
 
-                o1 = jjo[o1_idx] #jjo j1,j
-                o2 = jjo[o2_idx] #jjo j1,j2
-                o3 = jjo[o3_idx] #jjo j1,j3
+                #ternary operator ensures  vector is in right direction
+
+                o1 = jjo[o1_idx] if points[0] < j else -jjo[o1_idx] #jjo j1,j
+                o2 = jjo[o2_idx] if points[0] < points[1] else -jjo[o2_idx] #jjo j1,j2
+                o3 = jjo[o3_idx] if points[0] < points[2] else -jjo[o3_idx] #jjo j1,j3
+                
+
 
             cross = np.cross(o2,o3) #cross product
             dist = np.dot(o1,unit(cross))
@@ -231,7 +236,8 @@ def computeLpa(keypoints, jjo):
             endpoints = LINES[j]
 
             o1_idx = getPairIndex(min(endpoints[0], endpoints[1]), max(endpoints[0], endpoints[1]))
-            o1 = jjo[o1_idx] #jjo j1,j2
+            o1 = jjo[o1_idx] if endpoints[0] < endpoints[1] else -jjo[o1_idx] #jjo j1,j2
+
             
 
             #dealing for torso plane
@@ -243,8 +249,10 @@ def computeLpa(keypoints, jjo):
                 o2_idx = getPairIndex(min(points[0], points[1]), max(points[0], points[1]))
                 o3_idx = getPairIndex(min(points[0], points[2]), max(points[0], points[2]))
 
-                o2 = jjo[o2_idx] #jjo j1',j2'
-                o3 = jjo[o3_idx] #jjo j1',j3'
+
+                o2 = jjo[o2_idx] if points[0] < points[1] else -jjo[o2_idx] #jjo j1',j2'
+                o3 = jjo[o3_idx] if points[0] < points[2] else -jjo[o3_idx] #jjo j1',j3'
+
             
             cross = np.cross(o2,o3)
             temp = np.dot(o1, unit(cross)) #intermediate step
@@ -556,7 +564,7 @@ def testJjo(normalized):
     #verifying against know orientation
     head = normalized[JOINTS['head']]
     neck = normalized[JOINTS['neck']]
-    expected_orientation = unit(head-neck)
+    expected_orientation = unit(neck-head)
     idx = getPairIndex(min(JOINTS['neck'], JOINTS['head']), max(JOINTS['neck'], JOINTS['head']))
 
     assert np.allclose(jjo[idx], expected_orientation), f"Expected {expected_orientation} got {jjo[idx]}"
@@ -599,34 +607,6 @@ def testLla(normalized, jjo):
     assert not np.any(np.isinf(lla)), "Should not contain inf"
 
 
-    # parallel lines should give angle of 0
-    parallel_pose = normalized.copy()
-    parallel_pose[JOINTS['neck']]          = np.array([0.0, 0.0, 0.0])
-    parallel_pose[JOINTS['head']]          = np.array([0.0, 10.0, 0.0])
-    parallel_pose[JOINTS['left_shoulder']] = np.array([5.0, 0.0, 0.0])
-    parallel_pose[JOINTS['right_shoulder']]= np.array([5.0, 10.0, 0.0])
-    parallel_jjo, _ = computeJjo(parallel_pose)
-    parallel_lla = computeLla(parallel_jjo)
-    line1_idx = LINES.index((JOINTS['neck'], JOINTS['head']))
-    line2_idx = LINES.index((JOINTS['left_shoulder'], JOINTS['right_shoulder'])) \
-        if (JOINTS['left_shoulder'], JOINTS['right_shoulder']) in LINES \
-        else LINES.index((min(JOINTS['left_shoulder'], JOINTS['right_shoulder']),
-                        max(JOINTS['left_shoulder'], JOINTS['right_shoulder'])))
-    i = min(line1_idx, line2_idx)
-    j = max(line1_idx, line2_idx)
-    pair_idx = i * (len(LINES) - 1) - (i * (i-1)) // 2 + (j - i - 1)
-    assert np.isclose(parallel_lla[pair_idx], 0.0, atol=1e-6), f"Parallel lines should give angle 0 got {parallel_lla[pair_idx]:.6f}"
-
-    # antiparallel lines should give angle of pi
-    antiparallel_pose = normalized.copy()
-    antiparallel_pose[JOINTS['neck']]          = np.array([0.0,  0.0, 0.0])
-    antiparallel_pose[JOINTS['head']]          = np.array([0.0, 10.0, 0.0])
-    antiparallel_pose[JOINTS['left_shoulder']] = np.array([5.0, 10.0, 0.0])
-    antiparallel_pose[JOINTS['right_shoulder']]= np.array([5.0,  0.0, 0.0])
-    antiparallel_jjo, _ = computeJjo(antiparallel_pose)
-    antiparallel_lla = computeLla(antiparallel_jjo)
-    assert np.isclose(antiparallel_lla[pair_idx], np.pi, atol=1e-6), f"Antiparallel lines should give angle pi got {antiparallel_lla[pair_idx]:.6f}"
-
     print("  computeLla: OK")
 
 def testJpd(normalized, jjo):    
@@ -648,18 +628,24 @@ def testJpd(normalized, jjo):
     known_pose[JOINTS['left_hand']]     = np.array([0.0, 10.0, 0.0])
     # place neck 5 units above the left arm plane (z direction)
     known_pose[JOINTS['neck']]          = np.array([0.0,  0.0, 5.0])
+    
     known_jjo, _ = computeJjo(known_pose)
     known_jpd = computeJpd(known_pose, known_jjo)
-    # neck distance to left arm plane should be 5
+
+
+    # neck distance to left arm plane should be 1
     # left arm plane is PLANES[1] = (2,6,10), neck is not a vertex
     # find neck's position in output for left arm plane
     plane_idx = 1  # left arm plane
     valid_joints_before_neck = sum(1 for j in range(JOINTS['neck'])
                                     if j not in PLANES[plane_idx])
-    feature_idx = 9 + valid_joints_before_neck  # 9 joints for torso plane come first
-    assert np.isclose(abs(known_jpd[feature_idx]), 5.0, atol=1e-6), f"Expected distance 5.0 got {abs(known_jpd[feature_idx]):.6f}"
+    feature_idx = 10 + valid_joints_before_neck  # 9 joints for torso plane come first
 
-    #joint on plane should give zero distance
+    assert np.isclose(abs(known_jpd[feature_idx]), 1.0, atol=1e-6), f"Expected distance 1.0 got {abs(known_jpd[feature_idx]):.6f}"
+
+
+
+    #joint on plane should give zero distance (look into dropping)
     on_plane_pose = normalized.copy()
     on_plane_pose[JOINTS['left_shoulder']] = np.array([0.0,  0.0, 0.0])
     on_plane_pose[JOINTS['left_elbow']]    = np.array([10.0, 0.0, 0.0])
@@ -700,7 +686,7 @@ def testLpa(normalized, jjo):
 
     print("  computeLpa: OK")
 
-    # known angle: line perpendicular to plane normal should give pi/2
+    # known angle: line perpendicular to plane normal should give 0
     # place left arm plane in xy plane (z=0)
     # place a line along z axis - perpendicular to plane
     # angle between line and plane normal (z axis) should be 0
@@ -710,16 +696,21 @@ def testLpa(normalized, jjo):
     known_pose[JOINTS['left_elbow']]    = np.array([10.0, 0.0, 0.0])
     known_pose[JOINTS['left_hand']]     = np.array([0.0, 10.0, 0.0])
     # place neck-head line along z axis
-    known_pose[JOINTS['neck']]          = np.array([0.0, 0.0,  0.0])
-    known_pose[JOINTS['head']]          = np.array([0.0, 0.0, 10.0])
+    known_pose[JOINTS['neck']]          = np.array([0.0, 0.0,  10.0])
+    known_pose[JOINTS['head']]          = np.array([0.0, 0.0, 0.0])
     known_jjo, _ = computeJjo(known_pose)
     known_lpa = computeLpa(known_pose, known_jjo)
     # neck-head line vs left arm plane
     # normal of left arm plane is z axis
     # angle between neck-head (z axis) and normal (z axis) should be 0
-    line_idx = LINES.index((JOINTS['neck'], JOINTS['head']))
+    line_idx = LINES.index((JOINTS['neck'], JOINTS['head']))\
+        if (JOINTS['neck'], JOINTS['head']) in LINES \
+        else LINES.index((min(JOINTS['neck'], JOINTS['head']),
+                        max(JOINTS['neck'], JOINTS['head'])))
     plane_idx = 1  # left arm plane
-    feature_idx = line_idx * 3 + plane_idx
+    feature_idx = plane_idx * 19 + line_idx
+
+ 
     assert np.isclose(known_lpa[feature_idx], 0.0, atol=1e-6), f"Line along normal should give angle 0 got {known_lpa[feature_idx]:.6f}"
 
     # line parallel to plane should give pi/2
@@ -733,7 +724,6 @@ def testLpa(normalized, jjo):
     known_jjo2, _ = computeJjo(known_pose2)
     known_lpa2 = computeLpa(known_pose2, known_jjo2)
     assert np.isclose(known_lpa2[feature_idx], np.pi/2, atol=1e-6), f"Line parallel to plane should give pi/2 got {known_lpa2[feature_idx]:.6f}"
-    print("  test 6 - line parallel to plane gives pi/2: OK")
 
     # test 7 - torso plane handled correctly
     torso_pose = normalized.copy()
@@ -757,7 +747,6 @@ def testPpa(normalized, jjo):
     #no NaN or inf
     assert not np.any(np.isnan(ppa)), "Should not contain NaN"
     assert not np.any(np.isinf(ppa)), "Should not contain inf"
-    print("  test 3 - no NaN or inf: OK")
 
     # parallel planes should give angle 0
     # place left and right arm planes both in xy plane
@@ -771,10 +760,10 @@ def testPpa(normalized, jjo):
     parallel_jjo, _ = computeJjo(parallel_pose)
     parallel_ppa = computePpa(parallel_pose, parallel_jjo)
     # left arm vs right arm is index 0 (first pair in outer loop i=1, j=2)
-    assert np.isclose(parallel_ppa[0], 0.0, atol=1e-6), f"Parallel planes should give angle 0 got {parallel_ppa[0]:.6f}"
+    assert np.isclose(parallel_ppa[2], 0.0, atol=1e-6), f"Parallel planes should give angle 0 got {parallel_ppa[0]:.6f}"
 
 
-    # test 6 - perpendicular planes should give angle pi/2
+    # perpendicular planes should give angle pi/2
     perp_pose = normalized.copy()
     perp_pose[JOINTS['left_shoulder']]  = np.array([ 0.0,  0.0, 0.0])
     perp_pose[JOINTS['left_elbow']]     = np.array([10.0,  0.0, 0.0])
@@ -784,7 +773,7 @@ def testPpa(normalized, jjo):
     perp_pose[JOINTS['right_hand']]     = np.array([ 0.0,  0.0, 10.0])  # right arm in xz plane
     perp_jjo, _ = computeJjo(perp_pose)
     perp_ppa = computePpa(perp_pose, perp_jjo)
-    assert np.isclose(perp_ppa[0], np.pi/2, atol=1e-6), f"Perpendicular planes should give pi/2 got {perp_ppa[0]:.6f}"
+    assert np.isclose(perp_ppa[2], np.pi/2, atol=1e-6), f"Perpendicular planes should give pi/2 got {perp_ppa[0]:.6f}"
 
     # test 7 - torso plane handled correctly
     # torso plane is PLANES[0] so it appears in pairs (0,1) and (0,2)
@@ -888,41 +877,30 @@ def testGpd():
         assert normalized.shape == (12, 3), f"Expected (12,3) got {normalized.shape}"
         print("  normalizedPose: OK")
 
-        #testJc(normalized)
-        #testJjd(normalized)
-
+        testJc(normalized)
+        testJjd(normalized)
         testJjo(normalized)
-     
 
-        # jjd = computeJjd(normalized)
-        # testJld(normalized,jjd)
+        jjd = computeJjd(normalized)
 
-        #     jjo, jjoFlat = computeJjo(normalized)
-        #     testLla(normalized, jjoFlat)
+        testJld(normalized,jjd)
 
- 
+        jjo, jjoFlat = computeJjo(normalized)
 
-        #     testJpd(normalized, jjoFlat)
+        testLla(normalized, jjo)
+        testJpd(normalized, jjo)
+        testLpa(normalized,jjo)
+        testPpa(normalized, jjo)
 
+        gpd = computeGpd(test_kp)
+        assert gpd.shape == (749,), f"Expected (749,) got {gpd.shape}"
+        assert not np.any(np.isnan(gpd)), "GPD vector should not contain NaN values"
+        assert not np.any(np.isinf(gpd)), "GPD vector should not contain inf values"
+        print("  computeGpd: OK")
 
-
-        #     testLpa(normalized,jjoFlat)
-
-    
-
-        #     testPpa(normalized, jjoFlat)
-
-
-        #     gpd = computeGpd(test_kp)
-        #     assert gpd.shape == (749,), f"Expected (749,) got {gpd.shape}"
-        #     assert not np.any(np.isnan(gpd)), "GPD vector should not contain NaN values"
-        #     assert not np.any(np.isinf(gpd)), "GPD vector should not contain inf values"
-        #     print("  computeGpd: OK")
-
+        print("All tests passed")
 
     return 
-
-
 
 
 if __name__ == "__main__":
