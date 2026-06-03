@@ -54,7 +54,7 @@ def computeInterPersonSummaries(framePoses):
     numClinicians = len(framePoses)
 
     if numClinicians < 2: #median requires 1 pair
-        return np.zeros(1)
+        return np.zeros(6)
     
     pairwiseDists = []
     for i in range(numClinicians):
@@ -63,14 +63,22 @@ def computeInterPersonSummaries(framePoses):
             pairwiseDists.append(dist)
     
     medianDist = np.median(pairwiseDists)
+
+    #added interperson features (for efa)
+    meanDist = np.mean(pairwiseDists)
+    std = np.std(pairwiseDists)
+    minDist = np.min(pairwiseDists)
+    maxDist = np.max(pairwiseDists)
+    density = np.sum(pairwiseDists)
+
     
-    return np.array([medianDist])
+    return np.array([medianDist, meanDist, std, minDist, maxDist, density])
 
 def computeSceneGraphSummary(framePoses):
     numClinicians = len(framePoses)
 
     if numClinicians == 0:
-        return np.zeros(7)
+        return np.zeros(12)
     
     tableDistSummary = computeTableSummaries(framePoses)
     interPersonSummary = computeInterPersonSummaries(framePoses)

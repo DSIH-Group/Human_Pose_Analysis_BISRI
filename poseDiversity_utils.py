@@ -43,7 +43,7 @@ def computePairwiseDistances(framePoses):
 
     return np.array(pairwiseDist)   
 
-def getSummaries(framePoses):
+def poseDiversity(framePoses):
     if len(framePoses) < 2: #if frame only has 1 clinician
         return np.zeros(6)
 
@@ -57,7 +57,7 @@ def getSummaries(framePoses):
     minDist = np.min(pairwiseDist)
     distRange = maxDist - minDist
 
-    return np.array([])
+    return np.array([meanDiff, std, maxDist, maxDeviation, minDist, distRange])
 
 def testSummary():
     # create test poses  - 4 clinicians in a frame
@@ -147,7 +147,7 @@ def testSummary():
 
     # test getSummaries
     print("\nTesting getSummaries...")
-    summaries = getSummaries(framePoses)
+    summaries = poseDiversity(framePoses)
     assert summaries.shape == (6,), f"Expected (6,) got {summaries.shape}"
     assert not np.any(np.isnan(summaries)), "Summaries should not contain NaN"
     assert not np.any(np.isinf(summaries)), "Summaries should not contain inf"
@@ -167,7 +167,7 @@ def testSummary():
 
     # test edge case - single pose
     print("\nTesting getSummaries edge case (single pose)...")
-    singlePose = getSummaries([pose1])
+    singlePose = poseDiversity([pose1])
     assert singlePose.shape == (6,), f"Expected (6,) got {singlePose.shape}"
     assert np.all(singlePose == 0), "Single pose should return zeros"
     print("  getSummaries single pose: OK")
@@ -176,8 +176,8 @@ def testSummary():
     print("\nTesting semantic validity...")
     uniformFrame = [pose1, pose4]          # two similar poses
     diverseFrame = [pose1, pose2, pose3]   # three different poses
-    uniformSummaries = getSummaries(uniformFrame)
-    diverseSummaries = getSummaries(diverseFrame)
+    uniformSummaries = poseDiversity(uniformFrame)
+    diverseSummaries = poseDiversity(diverseFrame)
     assert diverseSummaries[0] > uniformSummaries[0], "Diverse frame should have higher mean distance"
     print(f"  uniform meanDiff: {uniformSummaries[0]:.2f}")
     print(f"  diverse meanDiff: {diverseSummaries[0]:.2f}")
