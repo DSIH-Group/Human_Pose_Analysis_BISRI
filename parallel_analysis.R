@@ -10,8 +10,9 @@ print(zero_var_cols) # <-- table feature 4 (front back ratio)
 
 #we drop feature in order to facilitate parallel analysis <-- will also be dropped in frame vector 
 data_clean <- data[ ,apply(data,2, sd) != 0 ]
+data_cleaned <- data_clean[51:64]
 
-result <- fa.parallel(data_clean, fa = "fa", n.iter = 100, main = "Parallel Analysis")
+result <- fa.parallel(data_cleaned, fa = "fa", n.iter = 100, main = "Parallel Analysis")
 
 print(result) #suggest 5 factors
 

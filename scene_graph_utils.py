@@ -7,7 +7,6 @@ def computeTableSummaries(framePoses):
     numClinicians = len(framePoses)
 
     cliniciansLeft = 0 #clinicians to left of table
-    cliniciansFront = 0 #clinicians in front of table
 
     for pose in framePoses:
         leftHip = pose[JOINTS['left_hip']]
@@ -17,11 +16,8 @@ def computeTableSummaries(framePoses):
         if midHip[0] < 0: #x coordinate
             cliniciansLeft+=1
 
-        if midHip[2] < 0: #zcoordinate
-            cliniciansFront+=1
     
     leftRightRatio = cliniciansLeft/numClinicians
-    frontBackRatio = cliniciansFront/numClinicians
 
 
     #distance summaries 
@@ -37,7 +33,7 @@ def computeTableSummaries(framePoses):
     minTableDist = np.min(frameDists)
     
 
-    return np.array([activeClinicians, meanTableDist, leftRightRatio, frontBackRatio, minTableDist])
+    return np.array([activeClinicians, meanTableDist, leftRightRatio, minTableDist])
 
 def computeInterPersonDistance(poseA, poseB):
     jointDists = []
@@ -54,7 +50,7 @@ def computeInterPersonSummaries(framePoses):
     numClinicians = len(framePoses)
 
     if numClinicians < 2: #median requires 1 pair
-        return np.zeros(6)
+        return np.zeros(4)
     
     pairwiseDists = []
     for i in range(numClinicians):
@@ -62,23 +58,22 @@ def computeInterPersonSummaries(framePoses):
             dist = computeInterPersonDistance(framePoses[i], framePoses[j])
             pairwiseDists.append(dist)
     
-    medianDist = np.median(pairwiseDists)
+    # medianDist = np.median(pairwiseDists)
 
     #added interperson features (for efa)
     meanDist = np.mean(pairwiseDists)
     std = np.std(pairwiseDists)
     minDist = np.min(pairwiseDists)
     maxDist = np.max(pairwiseDists)
-    density = np.sum(pairwiseDists)
 
     
-    return np.array([medianDist, meanDist, std, minDist, maxDist, density])
+    return np.array([meanDist, std, minDist, maxDist])
 
 def computeSceneGraphSummary(framePoses):
     numClinicians = len(framePoses)
 
     if numClinicians == 0:
-        return np.zeros(12)
+        return np.zeros(9)
     
     tableDistSummary = computeTableSummaries(framePoses)
     interPersonSummary = computeInterPersonSummaries(framePoses)

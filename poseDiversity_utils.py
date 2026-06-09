@@ -45,7 +45,7 @@ def computePairwiseDistances(framePoses):
 
 def poseDiversity(framePoses):
     if len(framePoses) < 2: #if frame only has 1 clinician
-        return np.zeros(6)
+        return np.zeros(5)
 
     #computing pairwise pose distances
     pairwiseDist = computePairwiseDistances(framePoses)
@@ -55,9 +55,8 @@ def poseDiversity(framePoses):
     maxDist = np.max(pairwiseDist)
     maxDeviation = maxDist-meanDiff
     minDist = np.min(pairwiseDist)
-    distRange = maxDist - minDist
 
-    return np.array([meanDiff, std, maxDist, maxDeviation, minDist, distRange])
+    return np.array([meanDiff, std, maxDist, maxDeviation, minDist])
 
 def testSummary():
     # create test poses  - 4 clinicians in a frame
