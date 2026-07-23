@@ -1,5 +1,4 @@
 ##running efa across all frames
-
 data <- read.csv("completeFrameMatrix.csv", row.names=1)
 head(data)
 

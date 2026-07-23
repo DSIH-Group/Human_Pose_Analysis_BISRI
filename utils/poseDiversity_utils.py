@@ -17,7 +17,7 @@ WEIGHTS = np.array([
     15, #right elbom
     0, #left wrist
     0, #right wrist
-    50, #left hand <-- weighted halved since keypoint is hand and not finger tip
+    50, #left hand 
     50 #right hand
 ])
 

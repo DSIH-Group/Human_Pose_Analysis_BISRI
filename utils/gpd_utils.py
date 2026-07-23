@@ -1,14 +1,7 @@
-import pickle 
 import numpy as np
 import math as m
 from general_utils import printKp, validateShape, printFrame, printOp 
 
-
-try:
-    with open('cleanedAnnots.pkl', 'rb') as f:
-        annots = pickle.load(f)
-except:
-    print("Error")
 
 #---Function and constants useful for building gpd vector-----
 
